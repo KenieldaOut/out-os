@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Moon, Sun, Bell, Menu, Calendar } from 'lucide-react'
+import { Moon, Sun, Bell, Menu, Calendar, LogOut } from 'lucide-react'
 import Sidebar from './Sidebar'
 import { useApp } from '../context/AppContext'
+import { useAuth } from '../hooks/useAuth'
+import { logout } from '../services/auth'
 
 const PAGE_TITLES = {
   '/': 'Dashboard',
@@ -18,8 +20,24 @@ const fmtDate = (d) =>
 
 function TopBar({ onMobileMenu }) {
   const { darkMode, setDarkMode, followUpAlerts } = useApp()
+  const { user } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef(null)
+
+  useEffect(() => {
+    if (!userMenuOpen) return
+    const handler = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setUserMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [userMenuOpen])
+
+  const userInitial = user?.email ? user.email[0].toUpperCase() : '?'
+  const userEmail = user?.email ?? ''
   const title =
     PAGE_TITLES[location.pathname] ??
     (location.pathname.startsWith('/clientes/') ? 'Detalhe do Cliente' : 'Out OS')
@@ -137,15 +155,38 @@ function TopBar({ onMobileMenu }) {
         )}
       </button>
 
-      {/* User avatar */}
-      <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-          AD
-        </div>
-        <div className="hidden sm:block">
-          <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-none">Admin</p>
-          <p className="text-[11px] text-gray-400 mt-0.5">Gerente</p>
-        </div>
+      {/* User avatar + dropdown */}
+      <div className="relative" ref={userMenuRef}>
+        <button
+          onClick={() => setUserMenuOpen((v) => !v)}
+          className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+            {userInitial}
+          </div>
+          <div className="hidden sm:block text-left">
+            <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-none max-w-[120px] truncate">
+              {userEmail || 'Usuário'}
+            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5">Conta</p>
+          </div>
+        </button>
+
+        {userMenuOpen && (
+          <div className="absolute right-0 top-12 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl z-50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Logado como</p>
+              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate mt-0.5">{userEmail}</p>
+            </div>
+            <button
+              onClick={async () => { setUserMenuOpen(false); await logout() }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+              Sair
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )
